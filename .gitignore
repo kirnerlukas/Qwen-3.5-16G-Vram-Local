@@ -63,7 +63,9 @@ nul
 *.code-workspace
 
 # --- Raw benchmark JSON (contain absolute paths; BENCHMARK_RESULTS.md is the clean summary) ---
+benchmark_*.json
 results/benchmark_*.json
+test_results/
 results/test_results_*.json
 
 # --- Misc large downloads ---

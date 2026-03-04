@@ -127,13 +127,20 @@ huggingface-cli download unsloth/Qwen3.5-35B-A3B-GGUF \
   mmproj-Qwen3.5-35B-A3B-F16.gguf \
   --local-dir ./models/unsloth-gguf/
 
-# 9B Vision server (5.4 GB)
+# 9B Vision server (~5 GB)
 huggingface-cli download unsloth/Qwen2.5-VL-9B-Instruct-GGUF \
   Qwen2.5-VL-9B-Instruct-Q4_K_XL.gguf \
+  mmproj-Qwen2.5-VL-9B-Instruct-F16.gguf \
+  --local-dir ./models/unsloth-gguf/
+
+# 27B Quality server (~11 GB) — optional
+huggingface-cli download unsloth/Qwen2.5-VL-27B-Instruct-GGUF \
+  Qwen2.5-VL-27B-Instruct-Q3_K_S.gguf \
+  mmproj-Qwen2.5-VL-27B-Instruct-F16.gguf \
   --local-dir ./models/unsloth-gguf/
 ```
 
-Or use the included helper: `python download_model.ps1`
+Or use the included helper: `.\download_model.ps1`
 
 **3. Python** (benchmark scripts only) — 3.11+ with `pip install requests`
 
@@ -163,7 +170,7 @@ start_servers_speed.bat quality
 ```bash
 ./llama-bin/llama-server \
   -m ./models/unsloth-gguf/Qwen3.5-35B-A3B-Q3_K_S.gguf \
-  --mmproj ./models/unsloth-gguf/mmproj-35B-F16.gguf \
+  --mmproj ./models/unsloth-gguf/mmproj-Qwen3.5-35B-A3B-F16.gguf \
   --host 127.0.0.1 --port 8002 \
   -c 155904 -ngl 99 \
   --flash-attn on \
@@ -192,7 +199,7 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
   }'
 ```
 
-> **💡 First 2 requests will be slow (~12 t/s).** This is CUDA PTX→sm_120 JIT compilation (Blackwell one-time warmup). Full 124 t/s kicks in from request 3 onward. Don't benchmark until warm.
+> **💡 First 2 requests may be slow (~12 t/s on Blackwell/SM120 GPUs).** This is CUDA PTX→sm_120 JIT compilation (one-time warmup). **RTX 30xx/40xx users won't see this** — native SM89 support in CUDA 12.x. Full speed kicks in from request 2-3 onward. Don't benchmark until warm.
 
 ---
 
@@ -254,7 +261,7 @@ This buffer grows with context size. Between 155,904 and 156,160 tokens, it cros
 
 ```bash
 -m Qwen3.5-35B-A3B-Q3_K_S.gguf
---mmproj mmproj-35B-F16.gguf
+--mmproj mmproj-Qwen3.5-35B-A3B-F16.gguf
 -c 155904 -ngl 99 --flash-attn on
 -ctk iq4_nl -ctv iq4_nl
 --chat-template-kwargs '{"enable_thinking":false}'
@@ -263,7 +270,7 @@ This buffer grows with context size. Between 155,904 and 156,160 tokens, it cros
 | Decision               | Reasoning                                                                                                                                 |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | **Q3_K_S over Q4_K_M** | Q4_K_M = 20.5 GB → partial CPU offload → 3–4 t/s. Q3_K_S = 14.2 GB → all 41 layers on GPU → 124 t/s. Full GPU wins by 30×.                |
-| **iq4_nl KV cache**    | MoE uses only 10/40 layers for attention. KV at 152K = only 856 MB. iq4_nl dequants faster on SM120 for small KV.                         |
+| **iq4_nl KV cache**    | MoE uses only 10/40 layers for attention. KV at 152K = only 856 MB. iq4_nl dequants faster for small KV caches.                           |
 | **thinking disabled**  | `enable_thinking:false` prevents 2–3× slowdown from chain-of-thought overhead. Use `true` only when you explicitly need reasoning traces. |
 | **-c 155904**          | Exactly one step below the 313 MB PCIe alignment cliff. This is the verified sweet spot.                                                  |
 
@@ -273,13 +280,13 @@ This buffer grows with context size. Between 155,904 and 156,160 tokens, it cros
 
 ```bash
 -m Qwen2.5-VL-9B-Instruct-Q4_K_XL.gguf
---mmproj mmproj-Qwen2.5-VL-9B-F16.gguf
+--mmproj mmproj-Qwen2.5-VL-9B-Instruct-F16.gguf
 -c 262144 -ngl 99 --flash-attn on
 -ctk q8_0 -ctv q8_0
 --chat-template-kwargs '{"enable_thinking":false}'
 ```
 
-Full 256K context (model native max). Uses **q8_0 KV** — not iq4_nl — because the 9B is a dense model with 33 attention layers. At RTX 5080's 960 GB/s bandwidth, raw read speed matters more than dequant cost, so the larger but faster q8_0 wins.
+Full 256K context (model native max). Uses **q8_0 KV** — not iq4_nl — because the 9B is a dense model with 33 attention layers. On high-bandwidth GPUs (GDDR6X/GDDR7), raw read speed matters more than dequant cost, so the larger but simpler q8_0 wins.
 
 ---
 
@@ -287,7 +294,7 @@ Full 256K context (model native max). Uses **q8_0 KV** — not iq4_nl — becaus
 
 ```bash
 -m Qwen2.5-VL-27B-Instruct-Q3_K_S.gguf
---mmproj mmproj-Qwen2.5-VL-27B-F16.gguf
+--mmproj mmproj-Qwen2.5-VL-27B-Instruct-F16.gguf
 -c 65536 -ngl 99 --flash-attn on
 -ctk iq4_nl -ctv iq4_nl
 --chat-template-kwargs '{"enable_thinking":false}'
@@ -346,10 +353,10 @@ For dense models, UD quants perform normally. The MXFP4 issue is specific to MoE
 
 ### KV Cache: Different Rules for MoE vs Dense
 
-| Model type      | Best KV quant | Why                                                            |
-| --------------- | :-----------: | -------------------------------------------------------------- |
-| MoE (35B-A3B)   |   `iq4_nl`    | Only 10 attention layers → small KV → dequant speed wins       |
-| Dense (9B, 27B) |    `q8_0`     | 33+ attention layers → large KV → read bandwidth wins on SM120 |
+| Model type      | Best KV quant | Why                                                      |
+| --------------- | :-----------: | -------------------------------------------------------- |
+| MoE (35B-A3B)   |   `iq4_nl`    | Only 10 attention layers → small KV → dequant speed wins |
+| Dense (9B, 27B) |    `q8_0`     | 33+ attention layers → large KV → read bandwidth wins    |
 
 > **⚠️ Never mix K and V quant types.** Using different quants for `-ctk` and `-ctv` causes a significant slowdown. Always set both to the same value.
 
@@ -427,7 +434,7 @@ Full documented results: [`results/BENCHMARK_RESULTS.md`](results/BENCHMARK_RESU
 ## 📁 Repo Structure
 
 ```
-qwen35-rtx5080-guide/
+Qwen-3.5-16G-Vram-Local/
 │
 ├── 📄 README.md                  ← You are here
 ├── 📄 DISCOVERY.md               ← Full 155,904 cliff write-up

@@ -1,6 +1,6 @@
 # ============================================
 # Qwen3.5 LLM Server Configuration
-# RTX 5080 16GB - Optimized Settings
+# Optimized for 16GB NVIDIA GPUs
 # ============================================
 
 # Directory Paths — edit these to match your installation
