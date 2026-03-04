@@ -631,6 +631,28 @@ Other useful contributions:
 
 ---
 
+## 👤 About the Author
+
+This project was created through extensive hands-on benchmarking and experimentation on consumer hardware.
+
+**William Finger** ([@willbnu](https://github.com/willbnu))
+
+- 🔧 Hardware enthusiast — RTX 5080, Ryzen 7 9800X3D, 96GB DDR5
+- 🧪 Passionate about local LLM optimization and real-world performance testing
+- 📊 Discovered the 155,904 token context cliff through systematic benchmarking
+- 🚀 Building tools and sharing knowledge to help others run LLMs locally
+
+> _"If it can't run locally at 100+ t/s, I'm not interested."_
+
+**🌐 Portfolio:** [williamfinger.dev](https://williamfinger.dev)
+
+**Connect:**
+
+- 💼 [GitHub](https://github.com/willbnu)
+- 📧 Open an issue for questions or collaborations
+
+---
+
 <div align="center">
 
 ### ⭐ Star if this saved you hours of benchmarking
