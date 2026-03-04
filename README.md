@@ -43,6 +43,10 @@
 ![llama.cpp](https://img.shields.io/badge/llama.cpp-b8196+-FF6B35?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)
 
+<br>
+
+> 🚀 **RTX 5080 / 5090 owner?** There's a native SM120 build guide that eliminates JIT warmup and adds ~10-20% speed. **[Jump to Advanced Build →](#-rtx-50805090-native-build-advanced)**
+
 </div>
 
 ---
@@ -57,6 +61,7 @@
 - [Why the 35B MoE Is Faster Than It Looks](#-why-the-35b-moe-is-faster-than-it-looks)
 - [Quantization Notes](#-quantization-notes)
 - [Hardware Notes](#-hardware-notes)
+- [🚀 RTX 5080/5090 Native Build (Advanced)](#-rtx-50805090-native-build-advanced)
 - [Benchmarking](#-benchmarking)
 - [Repo Structure](#-repo-structure)
 - [Contributing](#-contributing--reproducing)
@@ -411,6 +416,74 @@ The 35B-A3B Q3_K_S model (14.2 GB) fits on any NVIDIA card with **16 GB+ VRAM**.
 
 ---
 
+## 🚀 RTX 5080/5090 Native Build (Advanced)
+
+> **For Blackwell (SM120) GPU owners who want maximum performance.**
+
+### The Problem with Pre-built Binaries
+
+Pre-built llama.cpp binaries use CUDA 12.4, which **does not include SM120 support**. They run via PTX JIT compilation, which causes:
+
+| Issue                          | Impact                      |
+| ------------------------------ | --------------------------- |
+| 2-3 slow warmup requests       | ~12 t/s instead of 124 t/s  |
+| Non-native kernels             | ~10-20% slower steady-state |
+| Limited Flash Attention quants | Some KV types unavailable   |
+
+### The Solution: Build from Source
+
+A native SM120 build gives you:
+
+| Benefit                        | Gain                      |
+| ------------------------------ | ------------------------- |
+| **No JIT warmup**              | Full speed from request 1 |
+| **Native Blackwell kernels**   | +10-20% estimated speed   |
+| **All Flash Attention quants** | Better KV cache options   |
+
+### Quick Build Commands
+
+```powershell
+# Prerequisites: CUDA 12.6+, Visual Studio 2022, CMake 3.28+
+
+git clone https://github.com/ggml-org/llama.cpp.git
+cd llama.cpp
+mkdir build && cd build
+
+cmake .. -G "Visual Studio 17 2022" -A x64 `
+  -DCMAKE_CUDA_ARCHITECTURES=120 `
+  -DGGML_CUDA=ON `
+  -DGGML_CUDA_FA_ALL_QUANTS=ON `
+  -DGGML_FLASH_ATTN=ON `
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build . --config Release --parallel 8
+```
+
+### SM120-Specific KV Cache Recommendations
+
+On Blackwell's GDDR7 (960 GB/s), bandwidth is abundant:
+
+| Model           | Best KV  | Why                                    |
+| --------------- | :------: | -------------------------------------- |
+| MoE (35B-A3B)   | `iq4_nl` | Small KV (856 MB) → dequant speed wins |
+| Dense (9B, 27B) |  `q8_0`  | Large KV → raw bandwidth wins          |
+
+### Full Guide
+
+📄 **Complete build instructions, troubleshooting, and performance analysis:**
+
+👉 **[`docs/RTX5080-NATIVE-BUILD.md`](docs/RTX5080-NATIVE-BUILD.md)**
+
+Includes:
+
+- Detailed CMake flags explained
+- PowerShell build script
+- JIT warmup technical explanation
+- Expected performance gains
+- How to verify SM120 support
+
+---
+
 ## 📈 Benchmarking
 
 ```bash
@@ -455,6 +528,7 @@ Qwen-3.5-16G-Vram-Local/
 │   └── BENCHMARK_RESULTS.md     ← Full documented benchmark run
 │
 ├── 📚 docs/
+│   ├── RTX5080-NATIVE-BUILD.md  ← 🚀 SM120 native build guide (5080/5090 only)
 │   ├── KV_CACHE_ANALYSIS.md     ← KV quant deep-dive
 │   ├── PERFORMANCE_MATRIX.md    ← Model comparison matrix
 │   ├── 27B_OPTIMIZATION_ANALYSIS.md
