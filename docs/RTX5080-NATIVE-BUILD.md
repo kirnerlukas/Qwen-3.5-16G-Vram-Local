@@ -170,7 +170,7 @@ Dense models have 33+ attention layers → large KV. On SM120's high bandwidth (
 ```
 Request 1:  PTX → sm_120 JIT compile (CUDA driver)  →  ~12 t/s
 Request 2:  Kernel cache warmup                      →  ~80 t/s
-Request 3+: Full speed                               →  124 t/s
+Request 3+: Full speed                               →  125 t/s
 ```
 
 The CUDA driver compiles PTX (portable intermediate) to SM120 machine code on first use. This takes 2-3 inference passes.

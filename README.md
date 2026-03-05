@@ -2,9 +2,9 @@
 
 <h1>⚡ Qwen3.5-35B-A3B on 16GB GPU</h1>
 
-<p><strong>Maximum-speed local LLM on consumer hardware — 124 t/s with 152K context, <ins>multimodal vision enabled</ins>, fully documented.</strong></p>
+<p><strong>Maximum-speed local LLM on consumer hardware — 125 t/s with 152K context, <ins>multimodal vision enabled</ins>, fully documented.</strong></p>
 
-<p><em>🖼️ See images · 📄 Read PDFs · 🖥️ Analyze screenshots — all at 124 t/s on 16GB VRAM</em></p>
+<p><em>🖼️ See images · 📄 Read PDFs · 🖥️ Analyze screenshots — all at 125 t/s on 16GB VRAM</em></p>
 
 <p><em>Tested on RTX 5080 · Works on any NVIDIA 16GB (RTX 30xx / 40xx / 50xx)</em></p>
 
@@ -20,8 +20,8 @@
     <td align="center"><b>💾 VRAM</b></td>
   </tr>
   <tr>
-    <td align="center"><h2>124 t/s</h2></td>
-    <td align="center"><h2>166 t/s</h2></td>
+    <td align="center"><h2>125 t/s</h2></td>
+    <td align="center"><h2>192 t/s</h2></td>
     <td align="center"><h2>152K</h2></td>
     <td align="center"><h2>✅ On</h2></td>
     <td align="center"><h2>41 / 41</h2></td>
@@ -47,7 +47,7 @@
 
 <br>
 
-> 🚀 **RTX 5080 / 5090 owner?** There's a native SM120 build guide that eliminates JIT warmup and adds ~10-20% speed. **[Jump to Advanced Build →](#-rtx-50805090-native-build-advanced)**
+> 🚀 **RTX 5080 / 5090 owner?** There's a native SM120 build guide that eliminates JIT warmup latency. **[Jump to Advanced Build →](#-rtx-50805090-native-build-advanced)**
 
 </div>
 
@@ -90,7 +90,7 @@ A production-tested [llama.cpp](https://github.com/ggml-org/llama.cpp) setup for
 
 | Metric              | Value                                                                             |
 | ------------------- | --------------------------------------------------------------------------------- |
-| ⚡ Generation speed | **124.7 t/s avg · 166.4 t/s peak**                                                |
+| ⚡ Generation speed | **125.8 t/s avg · 192 t/s peak** (with `--parallel 1`)                            |
 | 📥 Prompt ingestion | **538 t/s**                                                                       |
 | 🧠 Context window   | **155,904 tokens (≈152K)**                                                        |
 | 👁️ Vision           | **Yes** — [mmproj](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF) loaded    |
@@ -103,7 +103,7 @@ A production-tested [llama.cpp](https://github.com/ggml-org/llama.cpp) setup for
 
 | Profile            | Model                                                                     | Port |  ⚡ Speed   | 🧠 Context | 💾 VRAM | Config                                   |
 | ------------------ | ------------------------------------------------------------------------- | :--: | :---------: | :--------: | :-----: | ---------------------------------------- |
-| 🖥️ **Coding**      | [35B-A3B Q3_K_S](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF)     | 8002 | **124 t/s** |  **152K**  | 15.4 GB | [→](#️-coding--35b-a3b-q3_k_s-port-8002)  |
+| 🖥️ **Coding**      | [35B-A3B Q3_K_S](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF)     | 8002 | **125 t/s** |  **152K**  | 15.4 GB | [→](#️-coding--35b-a3b-q3_k_s-port-8002)  |
 | 👁️ **Vision/Chat** | [9B Q4_K_XL](https://huggingface.co/unsloth/Qwen2.5-VL-9B-Instruct-GGUF)  | 8003 | **97 t/s**  |  **256K**  | 10.6 GB | [→](#️-fast-vision--9b-q4_k_xl-port-8003) |
 | 🎯 **Quality**     | [27B Q3_K_S](https://huggingface.co/unsloth/Qwen2.5-VL-27B-Instruct-GGUF) | 8004 | **36 t/s**  |    64K     | 12.9 GB | [→](#️-quality--27b-q3_k_s-port-8004)     |
 
@@ -122,7 +122,7 @@ This isn't just text. All three models support **vision/multimodal input** out o
 | 🖥️ Screenshot understanding |     ✅      |     ✅     |     ✅     |
 | 📊 Chart/diagram analysis   |     ✅      |     ✅     |     ✅     |
 | 🎥 Video frame analysis     |     ✅      |     ✅     |     ✅     |
-| Speed with vision           | **124 t/s** | **97 t/s** | **36 t/s** |
+| Speed with vision           | **125 t/s** | **97 t/s** | **36 t/s** |
 
 ### Quick Vision Test
 
@@ -145,7 +145,7 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
 
 ### Vision Performance
 
-The mmproj (vision projection) adds ~0.9 GB VRAM overhead but **does NOT slow down text generation**. You get full 124 t/s even with vision loaded.
+The mmproj (vision projection) adds ~0.9 GB VRAM overhead but **does NOT slow down text generation**. You get full 125 t/s even with vision loaded.
 
 > **💡 This is rare.** Many local LLM setups sacrifice speed for vision. This config gives you both.
 
@@ -239,6 +239,7 @@ start_servers_speed.bat quality
   -c 155904 -ngl 99 \
   --flash-attn on \
   -ctk iq4_nl -ctv iq4_nl \
+  --parallel 1 \
   --temp 0.6 --top-p 0.95 --top-k 20 \
   --chat-template-kwargs '{"enable_thinking":false}'
 ```
@@ -265,7 +266,9 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
   }'
 ```
 
-> **💡 First 2 requests may be slow (~12 t/s on Blackwell/SM120 GPUs).** This is CUDA PTX→sm_120 JIT compilation (one-time warmup). **RTX 30xx/40xx users won't see this** — native SM89 support in CUDA 12.x. Full speed kicks in from request 2-3 onward. [Learn more →](docs/RTX5080-NATIVE-BUILD.md#jit-warmup-explained)
+> **⚠️ CRITICAL: Always use `--parallel 1` for the 35B-A3B model.** Without it, the default auto-parallel (4 slots) causes a 10× slowdown (9 t/s instead of 125 t/s) due to oversized recurrent state buffers in the GDN hybrid architecture. [Details →](results/BENCHMARK_RESULTS.md)
+>
+> **💡 First 2 requests may be slow on SM120 GPUs (RTX 5080/5090).** This is CUDA PTX→sm_120 JIT compilation (one-time warmup). RTX 30xx/40xx users won't see this. [Learn more →](docs/RTX5080-NATIVE-BUILD.md#jit-warmup-explained)
 
 ---
 
@@ -280,7 +283,7 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
    96,000    109 t/s  ████████████████████████████████████████
   128,000    119 t/s  ████████████████████████████████████████████
   148,000    114 t/s  ██████████████████████████████████████████
-  155,904    124 t/s  ██████████████████████████████████████████████  ← SWEET SPOT
+  155,904    125 t/s  ██████████████████████████████████████████████  ← SWEET SPOT
   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
   156,160      9 t/s  ███  ← 93% speed DROP at +256 tokens
   160,000     10 t/s  ████
@@ -296,7 +299,7 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
 |     96K     |      200 MB      |   109 t/s   |      ✅      |
 |    128K     |      264 MB      |   119 t/s   |      ✅      |
 |    148K     |      304 MB      |   114 t/s   |      ✅      |
-| **155,904** |  **312.52 MB**   | **124 t/s** |  ✅ **MAX**  |
+| **155,904** |  **312.52 MB**   | **125 t/s** |  ✅ **MAX**  |
 | **156,160** |  **313.02 MB**   |  **9 t/s**  | ❌ **CLIFF** |
 |    160K     |      328 MB      |   10 t/s    |      ❌      |
 |    192K     |      392 MB      |    8 t/s    |      ❌      |
@@ -330,12 +333,14 @@ This buffer grows with context size. Between 155,904 and 156,160 tokens, it cros
 --mmproj mmproj-Qwen3.5-35B-A3B-F16.gguf
 -c 155904 -ngl 99 --flash-attn on
 -ctk iq4_nl -ctv iq4_nl
+--parallel 1
 --chat-template-kwargs '{"enable_thinking":false}'
 ```
 
 | Decision                                             | Reasoning                                                                                                                                 |
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **[Q3_K_S](docs/Quantization_Notes.md) over Q4_K_M** | Q4_K_M = 20.5 GB → partial CPU offload → 3–4 t/s. Q3_K_S = 14.2 GB → all 41 layers on GPU → 124 t/s. Full GPU wins by 30×.                |
+| **`--parallel 1`** ⚠️                                | **CRITICAL.** Default auto (4 slots) allocates 4× larger recurrent state buffers → 10× slowdown (9 t/s). With `--parallel 1` → 125 t/s.   |
+| **[Q3_K_S](docs/Quantization_Notes.md) over Q4_K_M** | Q4_K_M = 20.5 GB → partial CPU offload → 3–4 t/s. Q3_K_S = 14.2 GB → all 41 layers on GPU → 125 t/s. Full GPU wins by 30×.                |
 | **[iq4_nl KV cache](docs/KV_CACHE_ANALYSIS.md)**     | MoE uses only 10/40 layers for attention. KV at 152K = only 856 MB. iq4_nl dequants faster for small KV caches.                           |
 | **thinking disabled**                                | `enable_thinking:false` prevents 2–3× slowdown from chain-of-thought overhead. Use `true` only when you explicitly need reasoning traces. |
 | **-c 155904**                                        | Exactly one step below the 313 MB PCIe alignment cliff. This is the verified sweet spot.                                                  |
@@ -377,7 +382,7 @@ The "35B" label is misleading. Here's the actual compute:
 ```
   Dense 27B:  27B params active per token  →  36 t/s  🐢
   Dense  9B:   9B params active per token  →  97 t/s  🐇
-  MoE   35B:  ~3B params active per token  → 124 t/s  🚀
+  MoE   35B:  ~3B params active per token  → 125 t/s  🚀  (with --parallel 1)
 ```
 
 [Qwen3.5-35B-A3B](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF) has **256 experts** total, but only **8 routed + 1 shared** activate per token. Effective compute ≈ 3B parameters per forward pass — comparable to a 3B dense model. This is why a nominally "35B" model at 14.2 GB outruns a dense 27B at 12.3 GB by 3.4×.
@@ -411,7 +416,7 @@ The tiny KV footprint (only 10 attention layers vs 40 for a dense model) is also
 | **[Q3_K_S](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF)** | **14.2 GB** |  **~6.9**  |   **~5%**   | [🤗](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF) ✅ |
 | [UD-Q4_K_XL](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF) |   ~19 GB    |   7.170    | +9.7% worse | ❌ Avoid                                                     |
 
-Q3_K_S is the only quant that fits all 41 layers on a 16 GB GPU. The ~5% perplexity increase vs Q4_K_M is a much smaller penalty than the 30× speed loss from partial CPU offload (124 t/s vs 3–4 t/s).
+Q3_K_S is the only quant that fits all 41 layers on a 16 GB GPU. The ~5% perplexity increase vs Q4_K_M is a much smaller penalty than the 30× speed loss from partial CPU offload (125 t/s vs 3–4 t/s).
 
 ### Dense Models (9B, 27B): Unsloth Dynamic is Fine
 
@@ -436,7 +441,7 @@ The 35B-A3B Q3_K_S model (14.2 GB) fits on any NVIDIA card with **16 GB+ VRAM**.
 
 | GPU                                                                                                                                                                          | VRAM  |  Est. Speed  | Notes                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :----------: | ------------------------------------- |
-| **[RTX 5080](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5080/)**                                                                                      | 16 GB | **124 t/s**  | ✅ Tested — SM120, GDDR7              |
+| **[RTX 5080](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5080/)**                                                                                      | 16 GB | **125 t/s**  | ✅ Tested — SM120, GDDR7              |
 | [RTX 5070 Ti](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/)                                                                                                | 16 GB | ~100-110 t/s | Same arch, slightly less bandwidth    |
 | **[RTX 4080](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4080/)**                                                                                      | 16 GB |  ~85-95 t/s  | SM89, GDDR6X — should hit same cliff  |
 | **[RTX 4070 Ti Super](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4070-4070ti-super/)**                                                                | 16 GB |  ~75-85 t/s  | Cut-down 4080, still fast             |
@@ -458,12 +463,12 @@ The 35B-A3B Q3_K_S model (14.2 GB) fits on any NVIDIA card with **16 GB+ VRAM**.
 
 ### GPU Architecture Notes
 
-| Topic                   | Detail                                                                                                                                                   |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SM120 (Blackwell)**   | Pre-built llama.cpp uses CUDA 12.4 which lacks sm_120. PTX→sm_120 JIT on first run = 2 slow requests. **[Build native →](docs/RTX5080-NATIVE-BUILD.md)** |
-| **SM89 (Ada Lovelace)** | 40xx series has native support in [CUDA 12.x](https://developer.nvidia.com/cuda-downloads) — no JIT warmup needed                                        |
-| **Source build**        | `-DCMAKE_CUDA_ARCHITECTURES=120 -DGGML_CUDA_FA_ALL_QUANTS=ON` for native Blackwell kernels. **[Full guide →](docs/RTX5080-NATIVE-BUILD.md)**             |
-| **PCIe bandwidth**      | Recurrent state transfers (MoE) are PCIe-bound. Gen 4 vs 5 shouldn't change cliff location.                                                              |
+| Topic                   | Detail                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **SM120 (Blackwell)**   | Pre-built llama.cpp uses CUDA 12.4 which lacks sm_120. PTX→sm_120 JIT on first run = 2 slow requests. Native build = ~1% faster steady-state. **[Build native →](docs/RTX5080-NATIVE-BUILD.md)** |
+| **SM89 (Ada Lovelace)** | 40xx series has native support in [CUDA 12.x](https://developer.nvidia.com/cuda-downloads) — no JIT warmup needed                                                                                |
+| **Source build**        | `-DCMAKE_CUDA_ARCHITECTURES=120 -DGGML_CUDA_FA_ALL_QUANTS=ON` for native Blackwell kernels. **[Full guide →](docs/RTX5080-NATIVE-BUILD.md)**                                                     |
+| **PCIe bandwidth**      | Recurrent state transfers (MoE) are PCIe-bound. Gen 4 vs 5 shouldn't change cliff location.                                                                                                      |
 
 ### Minimum Requirements
 
@@ -485,21 +490,21 @@ The 35B-A3B Q3_K_S model (14.2 GB) fits on any NVIDIA card with **16 GB+ VRAM**.
 
 Pre-built llama.cpp binaries use CUDA 12.4, which **does not include SM120 support**. They run via PTX JIT compilation, which causes:
 
-| Issue                          | Impact                      |
-| ------------------------------ | --------------------------- |
-| 2-3 slow warmup requests       | ~12 t/s instead of 124 t/s  |
-| Non-native kernels             | ~10-20% slower steady-state |
-| Limited Flash Attention quants | Some KV types unavailable   |
+| Issue                    | Impact                                    |
+| ------------------------ | ----------------------------------------- |
+| 2-3 slow warmup requests | ~12 t/s instead of 125 t/s on first start |
 
 ### The Solution: Build from Source
 
 A native SM120 build gives you:
 
-| Benefit                        | Gain                      |
-| ------------------------------ | ------------------------- |
-| **No JIT warmup**              | Full speed from request 1 |
-| **Native Blackwell kernels**   | +10-20% estimated speed   |
-| **All Flash Attention quants** | Better KV cache options   |
+| Benefit                        | Gain                                                  |
+| ------------------------------ | ----------------------------------------------------- |
+| **No JIT warmup**              | Full speed from request 1                             |
+| **Native Blackwell kernels**   | ~1% raw throughput gain (125.8 vs 124.8 t/s measured) |
+| **All Flash Attention quants** | Better KV cache options                               |
+
+> **Note:** The real 10× speedup (9 → 125 t/s) comes from `--parallel 1`, not the native build. See [benchmark results](results/BENCHMARK_RESULTS.md).
 
 ### Quick Build Commands
 

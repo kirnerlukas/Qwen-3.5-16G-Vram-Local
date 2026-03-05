@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-03-05
+
+### Critical — `--parallel 1` Discovery (10× Speedup)
+
+**Root cause of 35B-A3B slowness found.** The Gated DeltaNet (GDN) hybrid architecture allocates recurrent state (RS) buffers proportional to `n_parallel`. The default `n_parallel=auto` selects 4 slots, creating 4× larger RS buffers (251 MB vs 62 MB), which causes a **10× generation slowdown**.
+
+| Config                   | RS Buffer | Speed          |
+| ------------------------ | --------- | -------------- |
+| `--parallel 1`           | 62 MB     | **125 t/s** ✅ |
+| `--parallel 4` (default) | 251 MB    | **9 t/s** ❌   |
+
+This is the single most impactful optimization discovered in the entire project — more important than the context cliff, SM120 build, or any other tuning.
+
+#### SM120 Native Build
+
+- Updated llama.cpp source from Aug 2024 (`0478174d`) → latest (`1a29907d`)
+- Built SM120-native binary with `CUDA_ARCHITECTURES=120`
+- **Result: ~1% raw throughput gain** (125.8 vs 124.8 t/s steady-state)
+- Real benefit: eliminates 2-3 slow JIT warmup requests on first launch
+- Corrected earlier claims of "+10-20% speed" to actual measured ~1%
+
+#### Files Updated
+
+- `config/servers.yaml` — fixed YAML syntax, added `parallel: 1` to all 35B-A3B configs
+- `start_servers_speed.bat` — added `--parallel 1` to coding server
+- `results/BENCHMARK_RESULTS.md` — added critical `--parallel 1` warning, updated speeds
+- `PROGRESS_CHECKLIST.md` — documented `--parallel 1` + SM120 findings
+- `docs/RTX5080-NATIVE-BUILD.md` — corrected SM120 performance claims with real data
+- `DISCOVERY.md` — added `--parallel 1` section, corrected `-np 1 made it worse` to explain JIT warmup
+- `README.md` — updated all speeds 124→125 t/s, added `--parallel 1` to configs
+- `docs/PERFORMANCE_MATRIX.md` — updated with current verified speeds
+
+#### Cleanup
+
+- Deleted 13 junk files (empty `27B`/`35B-A3B`/`9B`, `TERMINAL_BANNER_*.txt`, debug `.ps1` scripts)
+- Updated `.gitignore` with patterns for debug/test scripts
+
+---
+
 ## [1.3.0] - 2026-03-04
 
 ### Optimized — Final Config Locked
@@ -221,13 +260,15 @@ Saved to: `start_servers_speed.bat`, `config/servers.yaml`
 
 ## Version History Summary
 
-| Version | Date       | Key Changes                                                        |
-| ------- | ---------- | ------------------------------------------------------------------ |
-| 1.2.0   | 2026-03-04 | heretic-v1, KV cache analysis, RTX-STone/FlashMLA/PyTorch research |
-| 1.1.0   | 2026-03-04 | 35B-A3B vision, iq4_nl cache, performance matrix                   |
-| 1.0.0   | 2026-03-04 | Initial release with dual-server setup                             |
-| 0.5.0   | 2026-03-04 | Vision API working on 9B                                           |
-| 0.4.0   | 2026-03-04 | Migrated from Ollama to llama.cpp                                  |
-| 0.3.0   | 2026-03-03 | Abandoned SGLang (VRAM limits)                                     |
-| 0.2.0   | 2026-03-03 | Abandoned vLLM (Windows incompatibility)                           |
-| 0.1.0   | 2026-03-03 | Project started                                                    |
+| Version   | Date       | Key Changes                                                        |
+| --------- | ---------- | ------------------------------------------------------------------ |
+| **1.4.0** | 2026-03-05 | **`--parallel 1` discovery (10× speedup), SM120 build (~1% gain)** |
+| 1.3.0     | 2026-03-04 | Repo cleanup, context pushed to 152K, KV quant study               |
+| 1.2.0     | 2026-03-04 | heretic-v1, KV cache analysis, RTX-STone/FlashMLA/PyTorch research |
+| 1.1.0     | 2026-03-04 | 35B-A3B vision, iq4_nl cache, performance matrix                   |
+| 1.0.0     | 2026-03-04 | Initial release with dual-server setup                             |
+| 0.5.0     | 2026-03-04 | Vision API working on 9B                                           |
+| 0.4.0     | 2026-03-04 | Migrated from Ollama to llama.cpp                                  |
+| 0.3.0     | 2026-03-03 | Abandoned SGLang (VRAM limits)                                     |
+| 0.2.0     | 2026-03-03 | Abandoned vLLM (Windows incompatibility)                           |
+| 0.1.0     | 2026-03-03 | Project started                                                    |

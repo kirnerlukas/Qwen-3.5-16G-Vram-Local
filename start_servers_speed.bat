@@ -9,7 +9,7 @@ REM   9B alone      = 10.6GB VRAM — leaves 5.4GB headroom
 REM   They CANNOT run simultaneously (23GB needed)
 REM
 REM PROFILES:
-REM   coding  -> 35B-A3B Q3_K_S MoE  (port 8002) ~124 t/s, 152K ctx, vision
+REM   coding  -> 35B-A3B Q3_K_S MoE  (port 8002) ~125 t/s, 152K ctx, vision, --parallel 1
 REM   vision  -> 9B Q4_K_XL          (port 8003) ~97  t/s, 256K ctx
 REM   quality -> 27B Q3_K_S dense    (port 8004) ~36  t/s, 64K ctx
 REM
@@ -47,7 +47,7 @@ echo.
 echo ============================================
 echo  CODING PROFILE: 35B-A3B Q3_K_S (Port 8002)
 echo  MoE: only 3B active params per token
-echo  Speed: ~124 t/s gen / 538 t/s prompt
+echo  Speed: ~125 t/s gen / 538 t/s prompt
 echo  Context: 152K (155,904 tokens — hard max)
 echo  KV: iq4_nl (856MB)  Vision: YES
 echo  VRAM: ~15.4GB (245MB free)

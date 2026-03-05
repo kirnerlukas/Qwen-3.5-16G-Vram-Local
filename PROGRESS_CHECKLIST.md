@@ -35,7 +35,7 @@
 | 64K                | 109 t/s ✅     | Yes (15.0 GB)     | 136 MB        | Previous default |
 | 128K               | 119 t/s ✅     | Yes (15.4 GB)     | 264 MB        | Good             |
 | 148K               | 114 t/s ✅     | Yes (15.5 GB)     | 304 MB        | Good             |
-| **152K (155,904)** | **124 t/s ✅** | **Yes (15.4 GB)** | **312.52 MB** | **HARD MAX**     |
+| **152K (155,904)** | **125 t/s ✅** | **Yes (15.4 GB)** | **312.52 MB** | **HARD MAX**     |
 | 156,160            | 9 t/s ❌       | Yes (fits)        | 313.02 MB     | PCIe cliff       |
 | 192K               | 8 t/s ❌       | Yes (15.5 GB)     | 392 MB        | PCIe bottleneck  |
 | 256K               | 9 t/s ❌       | **NO (OOM)**      | 520 MB        | VRAM + PCIe      |
@@ -44,11 +44,11 @@ Root cause: `CUDA_Host compute buffer` crosses an internal alignment threshold a
 
 ### Use Case Routing
 
-| Task                    | Best Choice    | Port | Why                                                  |
-| ----------------------- | -------------- | ---- | ---------------------------------------------------- |
-| **Coding / fast chat**  | 35B-A3B Q3_K_S | 8002 | **124 t/s**, MoE efficiency, **152K** ctx, vision ✅ |
-| **Vision / multimodal** | 9B Q4_K_XL     | 8003 | 97 t/s, **256K** ctx, vision ✅                      |
-| **Long-form / quality** | 27B Q3_K_S     | 8004 | Dense model, best quality/token                      |
+| Task                    | Best Choice    | Port | Why                                                                  |
+| ----------------------- | -------------- | ---- | -------------------------------------------------------------------- |
+| **Coding / fast chat**  | 35B-A3B Q3_K_S | 8002 | **125 t/s**, MoE efficiency, **152K** ctx, vision ✅, `--parallel 1` |
+| **Vision / multimodal** | 9B Q4_K_XL     | 8003 | 97 t/s, **256K** ctx, vision ✅                                      |
+| **Long-form / quality** | 27B Q3_K_S     | 8004 | Dense model, best quality/token                                      |
 
 ---
 

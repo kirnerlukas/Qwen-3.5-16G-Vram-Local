@@ -1,21 +1,34 @@
 # Performance Comparison Matrix - RTX 5080 16GB
 
-## Test Date: March 4, 2026
+## Test Date: March 5, 2026 (updated with --parallel 1 findings)
 
 ---
 
-## Model Performance Summary
+## ⚠️ CRITICAL: `--parallel 1` Required for 35B-A3B
 
-| Model | Quant | Size | Vision | GPU Layers | Graph Splits | Prompt t/s | Gen t/s | Context |
-|-------|-------|------|--------|------------|--------------|------------|---------|---------|
-| **35B-A3B** | Q4_K_M | 20.5 GB | ❌ | 40/40 | 0 | 65-71 | **~70** | 64K |
-| **35B-A3B** | Q3_K_S | 14.2 GB | ✅ | 30/40 | 40 | 135 | 35 | 32K |
-| **heretic-v1** | Q4_K_M | 21.2 GB | ✅ | 25/41 | 2 | 66 | **7** ⚠️ | 32K |
-| **27B** | Q3_K_S | 12.3 GB | ✅ | 65/65 | 0 | 413 | **37** | 64K |
-| **27B** | Q4_K_M | 16.7 GB | ✅ | 53/65 | 12 | 191 | 12 | 16K |
-| **9B** | Q4_K_XL | 5.7 GB | ✅ | All | 0 | 1568 | **112** | 128K |
+The 35B-A3B uses a Gated DeltaNet (GDN) hybrid architecture. The default `n_parallel=auto` (4 slots) allocates 4× larger recurrent state buffers, causing **10× slowdown**. Always use `--parallel 1`.
+
+---
+
+## Model Performance Summary — Current Best (Verified)
+
+| Model          | Quant   | Size    | Vision | GPU Layers | Context  | Gen t/s      | Prompt t/s | Notes                         |
+| -------------- | ------- | ------- | ------ | ---------- | -------- | ------------ | ---------- | ----------------------------- |
+| **35B-A3B** ✅ | Q3_K_S  | 14.2 GB | ✅     | 41/41      | **152K** | **~125 t/s** | ~538 t/s   | `--parallel 1` required       |
+| **9B**         | Q4_K_XL | 5.7 GB  | ✅     | 33/33      | **256K** | **~97 t/s**  | ~668 t/s   | q8_0 KV, full model context   |
+| **27B**        | Q3_K_S  | 12.3 GB | ✅     | 65/65      | 64K      | **~36 t/s**  | ~325 t/s   | Dense, best quality per token |
+| heretic-v1     | Q4_K_M  | 21.2 GB | ✅     | 25/41      | 32K      | ~7 t/s ⚠️    | ~66 t/s    | Decensored, VRAM-limited      |
+
+### Historical (superseded — shown for comparison)
+
+| Model   | Quant  | Config                            | Gen t/s | Why Slow                      |
+| ------- | ------ | --------------------------------- | ------- | ----------------------------- |
+| 35B-A3B | Q4_K_M | 64K, no vision, no --parallel 1   | ~70 t/s | Q4_K_M too large, CPU offload |
+| 35B-A3B | Q3_K_S | 32K, vision, 30/40 layers, no -p1 | ~35 t/s | Partial GPU + wrong parallel  |
+| 35B-A3B | Q3_K_S | 128K, vision, default parallel    | ~9 t/s  | Missing `--parallel 1`        |
 
 ### heretic-v1 Notes
+
 - **Decensored**: 11/100 refusals vs 92/100 original
 - **Quality**: KL divergence 0.0366 (minimal loss)
 - **Speed**: Limited by VRAM (21.2 GB > 16 GB)
@@ -26,144 +39,129 @@
 ## Key Findings
 
 ### 35B-A3B Architecture Advantage
+
 - **MoE (Mixture of Experts)**: 35B total, only 3B active per token
 - **Why it's fast**: Only 8 routed + 1 shared expert activated
 - **n_embd**: 2048 (smaller than 27B's 5120)
-- **Layers**: 40 (vs 64 for 27B)
+- **Layers**: 40 (10 attention + 30 GDN recurrent)
+- **MUST use `--parallel 1`** — default auto causes 10× slowdown due to GDN RS buffer scaling
 
-### Graph Split Impact
-- **0 splits**: Full GPU speed (optimal)
-- **40 splits**: ~50% speed loss due to CPU↔GPU transfers
-- **Solution**: Fit model entirely in VRAM or accept slower speed
+### Graph Splits Clarification
+
+- Graph splits in logs do **NOT** always mean CPU offload
+- For hybrid-attention models (GDN + MoE), splits = 2–34 are **normal architecture splits**, all on GPU
+- 35B-A3B shows `graph splits = 22` at full speed (125 t/s) — this is expected
+- Actual CPU offload shows as `offloaded X/Y layers` with X < Y in the startup logs
 
 ### Vision Compatibility
-| Model | n_embd | mmproj | projection_dim | Match |
-|-------|--------|--------|----------------|-------|
-| 35B-A3B | 2048 | mmproj-35B-F16.gguf | 2048 | ✅ |
-| 27B | 5120 | mmproj-27B-F16.gguf | 5120 | ✅ |
-| 9B | 4096 | mmproj-F16.gguf | 4096 | ✅ |
+
+| Model   | n_embd | mmproj              | projection_dim | Match |
+| ------- | ------ | ------------------- | -------------- | ----- |
+| 35B-A3B | 2048   | mmproj-35B-F16.gguf | 2048           | ✅    |
+| 27B     | 5120   | mmproj-27B-F16.gguf | 5120           | ✅    |
+| 9B      | 4096   | mmproj-F16.gguf     | 4096           | ✅    |
 
 ---
 
 ## Recommended Configurations
 
-### Option A: Maximum Quality (Recommended)
+> **⚠️ One server at a time.** The 35B alone uses 15.4 GB — no two models fit in 16 GB simultaneously.
+
+### Coding (Best Overall)
+
 ```
-Port 8002: 35B-A3B Q4_K_M (Coding, no vision)
-           - 64K context, ~70 t/s
-           
-Port 8003: 9B Q4_K_XL (Fast Vision)
-           - 128K context, 112 t/s
-           
-Port 8005: 27B Q3_K_S (Quality Vision)
-           - 64K context, 37 t/s, ALL 65 GPU layers
+Port 8002: 35B-A3B Q3_K_S + Vision
+           - 152K context, ~125 t/s, --parallel 1
+           - iq4_nl KV cache (856 MB)
+           - Vision enabled (mmproj-35B-F16.gguf)
 ```
 
-### Option B: Simpler Setup (2 Servers)
+### Fast Vision / Long Context
+
 ```
-Port 8002: 35B-A3B Q4_K_M (Coding, no vision)
-           - 64K context, ~70 t/s
-           
-Port 8003: 27B Q3_K_S + Vision (All multimodal tasks)
-           - 64K context, 37 t/s
+Port 8003: 9B Q4_K_XL + Vision
+           - 256K context (full model max), ~97 t/s
+           - q8_0 KV cache (fastest on SM120)
 ```
 
-### Option C: Single Server (Switch as needed)
+### Quality / Long-Form
+
 ```
-Use 35B-A3B Q4_K_M for coding (fastest)
-Use 27B Q3_K_S + Vision when vision needed
+Port 8004: 27B Q3_K_S + Vision
+           - 64K context, ~36 t/s
+           - Dense model, best quality per token
 ```
+
+Switch between profiles with `start_servers_speed.bat coding|vision|quality`.
 
 ---
 
 ## Use Case Recommendations
 
-| Task | Best Model | Reason |
-|------|------------|--------|
-| **Coding** | 35B-A3B Q4_K_M | Best knowledge, 70 t/s, no vision needed |
-| **Fast Vision** | 9B Q4_K_XL | 112 t/s, 128K context |
-| **Quality Vision** | 27B Q3_K_S | All GPU layers, 37 t/s, good quality |
-| **Long Context** | 9B Q4_K_XL | 128K context support |
-| **Quality + Vision** | 35B-A3B Q3_K_S | Most knowledge, vision works, 35 t/s |
-| **Uncensored** | heretic-v1 Q4_K_M | Decensored (11% vs 92% refusals), 7 t/s ⚠️ |
+| Task             | Best Model        | Speed       | Context  | Why                                        |
+| ---------------- | ----------------- | ----------- | -------- | ------------------------------------------ |
+| **Coding**       | 35B-A3B Q3_K_S    | **125 t/s** | 152K     | MoE, fastest + vision, `--parallel 1`      |
+| **Fast Vision**  | 9B Q4_K_XL        | **97 t/s**  | **256K** | Full model context, fast vision            |
+| **Quality/Long** | 27B Q3_K_S        | **36 t/s**  | 64K      | Dense, all 27B params active, best quality |
+| **Long Context** | 9B Q4_K_XL        | **97 t/s**  | **256K** | 256K full model max                        |
+| **Uncensored**   | heretic-v1 Q4_K_M | ~7 t/s ⚠️   | 32K      | Decensored (11% refusals), needs 24GB+ GPU |
 
 ---
 
 ## KV Cache Optimization
 
-### Best Practice
+### MoE Models (35B-A3B) — use iq4_nl
+
 ```bash
---flash-attn on -ctk iq4_nl -ctv iq4_nl
+--flash-attn on -ctk iq4_nl -ctv iq4_nl --parallel 1
 ```
 
-### Cache Size Comparison (64K context)
-| Cache Type | Size | Quality | Flash Attn |
-|------------|------|---------|------------|
-| f16 | 2048 MB | Perfect | Optional |
-| q8_0 | 1024 MB | Excellent | Optional |
-| **iq4_nl** | **512 MB** | Very Good | **Required** |
+### MoE vs Dense KV Strategy
+
+| Model type    | Best KV  | KV @ Max Context | Why                                                 |
+| ------------- | :------: | :--------------: | --------------------------------------------------- |
+| MoE (35B-A3B) | `iq4_nl` |  856 MB @ 152K   | Only 10 attention layers → small KV → dequant wins  |
+| Dense (9B)    |  `q8_0`  | 4,352 MB @ 256K  | 33 attention layers → large KV → bandwidth wins     |
+| Dense (27B)   | `iq4_nl` |  1,152 MB @ 64K  | 65 layers but VRAM-constrained → iq4_nl saves space |
+
+> **Never mix K and V quant types.** Always set `-ctk` and `-ctv` to the same value.
 
 ---
 
 ## Unsloth Recommended Settings
 
 ### For Coding (Non-Thinking Mode)
+
 ```bash
 --temp 0.6 --top-p 0.95 --top-k 20
 --presence-penalty 0.0
---chat-template-kwargs "{\"enable_thinking\":false}"
+--parallel 1  # CRITICAL for 35B-A3B
+--chat-template-kwargs '{"enable_thinking":false}'
 ```
 
 ### For General Tasks (Non-Thinking Mode)
+
 ```bash
 --temp 0.7 --top-p 0.8 --top-k 20
 --presence-penalty 1.5
---chat-template-kwargs "{\"enable_thinking\":false}"
+--chat-template-kwargs '{"enable_thinking":false}'
 ```
 
 ---
 
-## RTX-STone Potential Improvement
+## ~~RTX-STone~~ ❌ NOT RECOMMENDED
 
-Installing RTX-STone could provide **40-60% performance boost**:
+Previously listed as a potential 40-60% performance boost. **DO NOT INSTALL.**
 
-| Model | Current | With RTX-STone (est.) |
-|-------|---------|----------------------|
-| 35B-A3B | 70 t/s | 98-112 t/s |
-| 27B | 37 t/s | 52-59 t/s |
-| 9B | 112 t/s | 157-179 t/s |
+- No GitHub repository (404 error)
+- Requires Python 3.10-3.11 (incompatible with 3.12)
+- 8 GB package size (suspicious for a driver patch)
+- Official PyTorch nightly already supports SM120
+- **Security risk** — unverified binary package
 
-**Install**: `pip install rtx-stone[all]`
-
----
-
-## Files Structure
-
-```
-qwen-llm/
-├── models/unsloth-gguf/
-│   ├── Qwen3.5-35B-A3B-Q4_K_M.gguf       # 20.5GB - Coding (no vision)
-│   ├── Qwen3.5-35B-A3B-Q3_K_S.gguf       # 14.2GB - Vision capable
-│   ├── Qwen3.5-35B-A3B-heretic-Q4_K_M.gguf # 21.2GB - Decensored
-│   ├── Qwen3.5-27B-Q3_K_S.gguf           # 12.3GB - Quality Vision
-│   ├── Qwen3.5-9B-UD-Q4_K_XL.gguf        # 5.7GB - Fast Vision
-│   ├── mmproj-35B-F16.gguf               # 858MB - 35B vision
-│   ├── mmproj-heretic-BF16.gguf          # 903MB - heretic vision
-│   ├── mmproj-27B-F16.gguf               # 928MB - 27B vision
-│   └── mmproj-F16.gguf                   # 918MB - 9B vision
-├── start_35b.bat                         # Coding server (no vision)
-├── start_27b_vision.bat                  # Quality vision server
-├── start_heretic_vision.bat              # Decensored vision server
-├── start_all_servers.bat                 # Launch all servers
-├── stop_all_servers.bat                  # Stop all
-├── test_35b_vision.py                    # Vision API test
-└── docs/
-    ├── PERFORMANCE_MATRIX.md             # This file
-    ├── KV_CACHE_ANALYSIS.md              # iq4_nl cache analysis
-    └── HERETIC_COMPARISON.md             # heretic vs original
-```
+The actual performance gains came from `--parallel 1` (10×) and proper config tuning, not external tools.
 
 ---
 
-*Generated: March 4, 2026*
-*Hardware: RTX 5080 16GB, Ryzen 9 9800X3D, 96GB RAM*
+_Updated: March 5, 2026_
+_Hardware: RTX 5080 16GB, Ryzen **7** 9800X3D (NOT Ryzen 9), 96GB RAM_

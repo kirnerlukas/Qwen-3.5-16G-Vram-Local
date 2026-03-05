@@ -20,7 +20,7 @@ echo ============================================
 echo.
 echo  These models cannot run simultaneously:
 echo.
-echo  [1] CODING  - 35B-A3B Q3_K_S  port 8002  ~124 t/s  152K ctx
+echo  [1] CODING  - 35B-A3B Q3_K_S  port 8002  ~125 t/s  152K ctx (--parallel 1)
 echo  [2] VISION  - 9B Q4_K_XL      port 8003  ~97  t/s  256K ctx
 echo  [3] QUALITY - 27B Q3_K_S      port 8004  ~36  t/s  64K  ctx
 echo.
