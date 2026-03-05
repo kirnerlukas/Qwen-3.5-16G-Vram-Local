@@ -9,7 +9,7 @@ REM   9B alone      = 10.6GB VRAM — leaves 5.4GB headroom
 REM   They CANNOT run simultaneously (23GB needed)
 REM
 REM PROFILES:
-REM   coding  -> 35B-A3B Q3_K_S MoE  (port 8002) ~125 t/s, 152K ctx, vision, --parallel 1
+REM   coding  -> 35B-A3B Q3_K_S MoE  (port 8002) ~125 t/s, 96K ctx, vision, --parallel 1
 REM   vision  -> 9B Q4_K_XL          (port 8003) ~97  t/s, 256K ctx
 REM   quality -> 27B Q3_K_S dense    (port 8004) ~36  t/s, 64K ctx
 REM
@@ -47,13 +47,11 @@ echo.
 echo ============================================
 echo  CODING PROFILE: 35B-A3B Q3_K_S (Port 8002)
 echo  MoE: only 3B active params per token
-echo  Speed: ~125 t/s gen / 538 t/s prompt
-echo  Context: 152K (155,904 tokens — hard max)
-echo  KV: iq4_nl (856MB)  Vision: YES
-echo  VRAM: ~15.4GB (245MB free)
-echo  NOTE: 156,160+ tokens causes PCIe bottleneck
+echo  Speed: ~125 t/s gen / ~500 t/s prompt
+echo  Context: 96K (98,304 tokens)
+echo  KV: iq4_nl  Vision: YES
+echo  VRAM: ~15.4GB
 echo  NOTE: --parallel 1 is CRITICAL for 120+ t/s (GDN hybrid arch)
-echo  NOTE: Default auto parallel (4) causes 10x slowdown (10 t/s)
 echo ============================================
 echo.
 start "Qwen3.5-35B-A3B-Coding" /min cmd /c ^
@@ -61,14 +59,14 @@ start "Qwen3.5-35B-A3B-Coding" /min cmd /c ^
     -m "%MODELS_DIR%\Qwen3.5-35B-A3B-Q3_K_S.gguf" ^
     --mmproj "%MODELS_DIR%\mmproj-35B-F16.gguf" ^
     --host 127.0.0.1 --port 8002 ^
-    -c 155904 ^
+    -c 98304 ^
     -ngl 99 ^
     --flash-attn on ^
     -ctk iq4_nl -ctv iq4_nl ^
     --parallel 1 ^
     --temp 0.6 --top-p 0.95 --top-k 20 ^
     --presence-penalty 0.0 ^
-    --chat-template-kwargs "{\"enable_thinking\":false}" ^
+    --reasoning-budget 0 ^
     > "%LOGS_DIR%\server-8002.log" 2>&1
 echo Started. Check: curl http://127.0.0.1:8002/health
 goto :end
