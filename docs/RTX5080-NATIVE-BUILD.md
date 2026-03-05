@@ -10,18 +10,18 @@
 
 Pre-built llama.cpp binaries use CUDA 12.4, which **does not include SM120 support**. They run via PTX JIT compilation (sm_89 → sm_120), which causes:
 
-- **2-3 slow warmup requests** (~12 t/s instead of 124 t/s)
+- **2-3 slow warmup requests** (~12 t/s instead of 125 t/s on first launch)
 - **Suboptimal kernels** — not tuned for Blackwell's architecture
-- **Missing Flash Attention quants** — some KV cache types aren't compiled
 
 A native SM120 build gives you:
 
-| Benefit                    | Impact                    |
-| -------------------------- | ------------------------- |
-| No JIT warmup              | Full speed from request 1 |
-| Native Blackwell kernels   | Potential +10-20% speed   |
-| All Flash Attention quants | Better KV cache options   |
-| Optimized memory paths     | Lower latency             |
+| Benefit                    | Impact                                   |
+| -------------------------- | ---------------------------------------- |
+| No JIT warmup              | Full speed from request 1                |
+| Native Blackwell kernels   | ~1% raw throughput gain (125.8 vs 124.8) |
+| All Flash Attention quants | Better KV cache options                  |
+
+> **⚠️ IMPORTANT**: The native SM120 build provides only ~1% raw speed improvement (125.8 vs 124.8 t/s). The main benefit is eliminating the 2-3 slow JIT warmup requests on first launch. The **real 10x speedup** (9 t/s → 125 t/s) comes from using `--parallel 1` — see below.
 
 ---
 
@@ -103,16 +103,33 @@ Check that it starts without PTX JIT messages in the console.
 
 ---
 
-## Expected Performance Gains
+## Actual Performance Results (March 5, 2026)
 
-| Metric                 | Pre-built (PTX JIT) | Native SM120 Build |
-| ---------------------- | :-----------------: | :----------------: |
-| First request speed    |       ~12 t/s       |      ~124 t/s      |
-| Steady state speed     |       124 t/s       | 135-150 t/s (est.) |
-| Flash Attention quants |       Limited       |   All available    |
-| Warmup time            |    2-3 requests     |        None        |
+Benchmarked on RTX 5080 16GB with Qwen3.5-35B-A3B Q3_K_S, 128K context, `--parallel 1`:
 
-> **Note:** Actual gains depend on workload. The +10-20% estimate is based on typical SM architecture transitions (SM80→SM89 saw ~15% gains).
+| Metric                 | Pre-built b8196 (PTX JIT) | Native SM120 Build | Difference |
+| ---------------------- | :-----------------------: | :----------------: | :--------: |
+| First request speed    |       ~12 t/s (JIT)       |      ~125 t/s      | **10x** ✅ |
+| Steady state speed     |         124.8 t/s         |     125.8 t/s      | **+0.8%**  |
+| Flash Attention quants |         All work          |   All available    |    Same    |
+| Warmup time            |       2-3 requests        |        None        | Eliminated |
+
+> **Key takeaway**: The raw throughput gain is only ~1%. The native build's real value is eliminating JIT warmup latency on first requests after server start.
+>
+> **The actual 10x speedup** (9 t/s → 125 t/s) comes from the `--parallel 1` flag, which is needed for the Gated DeltaNet hybrid architecture. See `results/BENCHMARK_RESULTS.md` for details.
+
+---
+
+## ⚠️ CRITICAL: --parallel 1 for 35B-A3B Models
+
+**This is more important than the SM120 build itself.** The 35B-A3B uses a Gated DeltaNet (GDN) hybrid architecture with recurrent state (RS) buffers. The default `n_parallel=auto` (4 slots) allocates 4x larger RS buffers, causing a **10x generation slowdown**:
+
+| Config                   | RS Buffer | Gen Speed       |
+| ------------------------ | --------- | --------------- |
+| `--parallel 1`           | 62 MB     | **~125 t/s** ✅ |
+| `--parallel 4` (default) | 251 MB    | **~9 t/s** ❌   |
+
+**Always add `--parallel 1` when running any 35B-A3B model.**
 
 ---
 

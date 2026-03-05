@@ -3,7 +3,7 @@
 ## System Info
 
 - **Date Started**: March 3, 2026
-- **Date Updated**: March 4, 2026 (context expansion study)
+- **Date Updated**: March 5, 2026 (--parallel 1 discovery + SM120 native build)
 - **GPU**: RTX 5080 16GB (SM120 - Blackwell)
 - **CPU**: Ryzen **7** 9800X3D (8-core — NOT Ryzen 9)
 - **RAM**: 96GB
@@ -22,7 +22,7 @@
 
 | Server      | Port | Model        | Quant   | Context            | KV     | GPU Layers | Gen t/s      | Prompt t/s | VRAM    | Vision |
 | ----------- | ---- | ------------ | ------- | ------------------ | ------ | ---------- | ------------ | ---------- | ------- | ------ |
-| **35B-A3B** | 8002 | Q3_K_S MoE   | 3.94bpw | **152K (155,904)** | iq4_nl | 41/41 ✅   | **~124 t/s** | ~538 t/s   | ~15.4GB | ✅     |
+| **35B-A3B** | 8002 | Q3_K_S MoE   | 3.94bpw | **152K (155,904)** | iq4_nl | 41/41 ✅   | **~125 t/s** | ~538 t/s   | ~15.4GB | ✅     |
 | **9B**      | 8003 | Q4_K_XL      | 4.9bpw  | 256K               | q8_0   | 33/33 ✅   | **~97 t/s**  | ~668 t/s   | ~10.6GB | ✅     |
 | **27B**     | 8004 | Q3_K_S dense | 3.94bpw | 64K                | iq4_nl | 65/65 ✅   | **~36 t/s**  | ~325 t/s   | ~12.9GB | ✅     |
 
@@ -128,6 +128,27 @@ Root cause: `CUDA_Host compute buffer` crosses an internal alignment threshold a
   - Bug: 128K context with f16 KV → Fix: 64K + q8_0 KV cache
   - Bug: missing `--chat-template-kwargs` thinking disable → Fixed
 
+#### --parallel 1 Discovery (March 5, 2026) 🚨 CRITICAL
+
+- [x] **ROOT CAUSE FOUND: `--parallel 1` required for 35B-A3B GDN hybrid architecture**
+  - Default `n_parallel=auto` selects 4 slots → 4x larger recurrent state (RS) buffers
+  - RS buffer: 1 slot = 62 MB (fast), 4 slots = 251 MB (10x slower)
+  - `--parallel 1` = **~125 t/s**, `--parallel 4` (default) = **~9 t/s**
+- [x] Updated `start_servers_speed.bat` with `--parallel 1`
+- [x] Updated `config/servers.yaml` with `parallel: 1` on all 35B-A3B server configs
+- [x] Updated `results/BENCHMARK_RESULTS.md` with critical --parallel 1 warning
+- [x] Updated `launch_sm120.ps1` with `--parallel 1`
+
+#### SM120 Native Build (March 5, 2026) 🔧
+
+- [x] Updated llama.cpp source from Aug 2024 (`0478174d`) → latest (`1a29907d`)
+- [x] Built SM120-native binary at `llama.cpp/build-sm120/bin/Release/llama-server.exe`
+  - CMake config: `CUDA_ARCHITECTURES=120`, `GGML_CUDA_FA_ALL_QUANTS=ON`
+- [x] **Benchmarked: SM120 native = 125.8 t/s vs prebuilt b8196 = 124.8 t/s (~1% gain)**
+  - Real benefit is eliminating JIT warmup on first requests, not raw speed
+  - The actual 10x speedup came from `--parallel 1`, not SM120
+- [x] Documented in `docs/RTX5080-NATIVE-BUILD.md` (corrected performance claims)
+
 #### Research Analysis (March 4, 2026) 🔬
 
 - [x] **RTX-STone Analysis**: Security concerns - NOT RECOMMENDED
@@ -147,28 +168,32 @@ Root cause: `CUDA_Host compute buffer` crosses an internal alignment threshold a
 
 ### Critical Findings
 
-1. **vLLM Requirements**: Needs Linux/WSL, doesn't work native Windows, requires 48GB VRAM for 170K context
+1. **`--parallel 1` REQUIRED for 35B-A3B (CRITICAL)**: The GDN hybrid architecture allocates recurrent state (RS) buffers proportional to `n_parallel`. Default auto (4 slots) = 251 MB RS → 10x slowdown. With `--parallel 1` = 62 MB RS → full speed (~125 t/s). This is the single most impactful optimization found.
 
-2. **llama.cpp Advantages**: Windows native, 30-50x faster than Ollama, better VRAM efficiency
+2. **SM120 Native Build = ~1% gain only**: Prebuilt b8196 (SM89 PTX JIT) = 124.8 t/s vs SM120 native = 125.8 t/s. The real benefit is eliminating 2-3 slow JIT warmup requests, not raw throughput.
 
-3. **Thinking Mode Issue**: Qwen3.5 has thinking mode causing 2-3x slowdown - must disable via chat template
+3. **vLLM Requirements**: Needs Linux/WSL, doesn't work native Windows, requires 48GB VRAM for 170K context
 
-4. **Vision Compatibility (MAJOR DISCOVERY)**:
+4. **llama.cpp Advantages**: Windows native, 30-50x faster than Ollama, better VRAM efficiency
+
+5. **Thinking Mode Issue**: Qwen3.5 has thinking mode causing 2-3x slowdown - must disable via chat template
+
+6. **Vision Compatibility (MAJOR DISCOVERY)**:
    - 35B-A3B (n_embd=2048) ✅ works with mmproj-35B-F16.gguf (projection_dim=2048)
    - 27B (n_embd=5120) ✅ works with mmproj-27B-F16.gguf (projection_dim=5120)
    - 9B (n_embd=4096) ✅ works with mmproj-F16.gguf (projection_dim=4096)
 
-5. **Context Scaling**: 9B can do 256K (full model max!), 27B and 35B limited to 64K on 16GB VRAM
+7. **Context Scaling**: 9B can do 256K (full model max!), 35B-A3B can do 152K (155,904 tokens), 27B limited to 64K on 16GB VRAM
 
-6. **Flash Attention Discovery**: Must be FORCED ON with `--flash-attn on` (not auto) for iq4_nl/q8_0 cache to work
+8. **Flash Attention Discovery**: Must be FORCED ON with `--flash-attn on` (not auto) for iq4_nl/q8_0 cache to work. New llama.cpp builds require `--flash-attn on` explicitly (not just `--flash-attn`).
 
-7. **KV Cache Optimization**: iq4_nl = 75% smaller than f16 (ideal for large MoE models); q8_0 = fastest on SM120 (better bandwidth than dequant cost)
+9. **KV Cache Optimization**: iq4_nl = 75% smaller than f16 (ideal for large MoE models); q8_0 = fastest on SM120 (better bandwidth than dequant cost)
 
-8. **Graph Splits Clarification**: "graph splits" in logs does NOT always mean CPU offload. For hybrid-attention models (9B Gated DeltaNet, 27B/35B MoE layers), splits = 2–34 are normal architecture splits, all on GPU. Actual CPU offload shows as partial `offloaded X/Y layers` with Y being total.
+10. **Graph Splits Clarification**: "graph splits" in logs does NOT always mean CPU offload. For hybrid-attention models (9B Gated DeltaNet, 27B/35B MoE layers), splits = 2–34 are normal architecture splits, all on GPU. Actual CPU offload shows as partial `offloaded X/Y layers` with Y being total.
 
-9. **heretic-v1 Decensoring**: MPOA (Magnitude-Preserving Orthogonal Ablation) reduces refusals from 92% to 11%
+11. **heretic-v1 Decensoring**: MPOA (Magnitude-Preserving Orthogonal Ablation) reduces refusals from 92% to 11%
 
-10. **SM120 Hardware Limits**:
+12. **SM120 Hardware Limits**:
     - 99KB shared memory (vs 227KB on datacenter)
     - No GMMA/TCGEN05 instructions
     - No TMEM (Tensor Memory)
@@ -186,7 +211,8 @@ Root cause: `CUDA_Host compute buffer` crosses an internal alignment threshold a
 ### MoE Efficiency (35B-A3B)
 
 - Uses only 3B active params per token (8 routed + 1 shared expert from 256 total)
-- This is why 35B generates at ~70 t/s while 27B only does ~37 t/s!
+- This is why 35B generates at ~125 t/s while 27B only does ~36 t/s!
+- **MUST use `--parallel 1`** — default auto (4 slots) causes 10x slowdown due to GDN RS buffer scaling
 
 ### iq4_nl KV Cache Benefits
 
@@ -202,10 +228,13 @@ Root cause: `CUDA_Host compute buffer` crosses an internal alignment threshold a
 
 ```
 qwen-llm/
-├── llama-bin/                        # llama.cpp binaries (b8196 CUDA)
+├── llama-bin/                        # llama.cpp prebuilt binaries (b8196, ARCHS 500-890)
 │   ├── llama-server.exe
 │   ├── llama-mtmd-cli.exe
 │   └── *.dll
+├── llama.cpp/                        # Source + SM120 native build (ARCHS 1200)
+│   └── build-sm120/bin/Release/
+│       └── llama-server.exe          # SM120 native — 125.8 t/s (vs 124.8 prebuilt)
 ├── models/unsloth-gguf/              # All model files (DO NOT TOUCH)
 │   ├── Qwen3.5-9B-UD-Q4_K_XL.gguf
 │   ├── Qwen3.5-27B-Q3_K_S.gguf
@@ -361,21 +390,21 @@ response = requests.post('http://127.0.0.1:8003/v1/chat/completions', json=paylo
 
 > One server at a time — 35B alone fills 15.5GB of 16GB VRAM.
 
-| Use Case         | Model              | Port | Quant   | KV     | Context  | Gen t/s  |
-| ---------------- | ------------------ | ---- | ------- | ------ | -------- | -------- |
-| **Coding**       | 35B-A3B Q3_K_S MoE | 8002 | 3.94bpw | iq4_nl | 64K      | **~109** |
-| **Fast Vision**  | 9B Q4_K_XL         | 8003 | 4.9bpw  | q8_0   | **256K** | **~97**  |
-| **Quality/Long** | 27B Q3_K_S dense   | 8004 | 3.94bpw | iq4_nl | 64K      | **~36**  |
-| **Uncensored**   | heretic-v1 Q4_K_M  | 8006 | 4.98bpw | f16    | 32K      | ~7 t/s   |
+| Use Case         | Model              | Port | Quant   | KV     | Context  | Gen t/s  | Notes                     |
+| ---------------- | ------------------ | ---- | ------- | ------ | -------- | -------- | ------------------------- |
+| **Coding**       | 35B-A3B Q3_K_S MoE | 8002 | 3.94bpw | iq4_nl | **152K** | **~125** | `--parallel 1` REQUIRED   |
+| **Fast Vision**  | 9B Q4_K_XL         | 8003 | 4.9bpw  | q8_0   | **256K** | **~97**  |                           |
+| **Quality/Long** | 27B Q3_K_S dense   | 8004 | 3.94bpw | iq4_nl | 64K      | **~36**  |                           |
+| **Uncensored**   | heretic-v1 Q4_K_M  | 8006 | 4.98bpw | f16    | 32K      | ~7 t/s   | Needs 24GB+ GPU for speed |
 
 ### Start Commands
 
 ```bat
-start_servers_speed.bat coding    # 35B MoE — best for coding
-start_servers_speed.bat vision    # 9B — fast vision + 256K context
-start_servers_speed.bat quality   # 27B dense — best quality per token
+start_servers_speed.bat coding    # 35B MoE — 125 t/s, 152K ctx, --parallel 1
+start_servers_speed.bat vision    # 9B — 97 t/s, 256K context
+start_servers_speed.bat quality   # 27B dense — 36 t/s, best quality per token
 ```
 
 ---
 
-_Last Updated: March 4, 2026_
+_Last Updated: March 5, 2026_

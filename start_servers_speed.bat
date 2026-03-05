@@ -52,7 +52,8 @@ echo  Context: 152K (155,904 tokens — hard max)
 echo  KV: iq4_nl (856MB)  Vision: YES
 echo  VRAM: ~15.4GB (245MB free)
 echo  NOTE: 156,160+ tokens causes PCIe bottleneck
-echo  NOTE: First 1-2 requests slow (CUDA JIT)
+echo  NOTE: --parallel 1 is CRITICAL for 120+ t/s (GDN hybrid arch)
+echo  NOTE: Default auto parallel (4) causes 10x slowdown (10 t/s)
 echo ============================================
 echo.
 start "Qwen3.5-35B-A3B-Coding" /min cmd /c ^
@@ -64,6 +65,7 @@ start "Qwen3.5-35B-A3B-Coding" /min cmd /c ^
     -ngl 99 ^
     --flash-attn on ^
     -ctk iq4_nl -ctv iq4_nl ^
+    --parallel 1 ^
     --temp 0.6 --top-p 0.95 --top-k 20 ^
     --presence-penalty 0.0 ^
     --chat-template-kwargs "{\"enable_thinking\":false}" ^
