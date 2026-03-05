@@ -15,7 +15,6 @@ llama.cpp/
 llama-bin/
 *.exe
 *.dll
-*.zip
 *.so
 *.dylib
 
@@ -30,7 +29,10 @@ __pycache__/
 dist/
 build/
 
-# --- Logs (contain full absolute paths, no value for others) ---
+# --- Node.js ---
+node_modules/
+
+# --- Logs ---
 logs/
 *.log
 
@@ -63,7 +65,7 @@ TERMINAL_OUTPUT.md
 BENCHMARK_VISUAL.md
 SCREENSHOT_GUIDE.md
 
-# --- Debug/test scripts (created during benchmarking sessions) ---
+# --- Debug/test scripts ---
 launch_*.ps1
 test_*.ps1
 start_*_test.bat
@@ -72,8 +74,9 @@ start_*_test.bat
 .idea/
 .vscode/
 *.code-workspace
+.vs/
 
-# --- Raw benchmark JSON (contain absolute paths; BENCHMARK_RESULTS.md is the clean summary) ---
+# --- Raw benchmark JSON ---
 benchmark_*.json
 results/benchmark_*.json
 test_results/
@@ -83,10 +86,8 @@ results/test_results_*.json
 *.zip
 llama*.zip
 
-# Auto Claude data directory
+# --- Auto Claude ---
 .auto-claude/
-
-# Auto Claude generated files
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
@@ -94,5 +95,3 @@ llama*.zip
 .security-key
 logs/security/
 video/
-node_modules/
-.vs/
