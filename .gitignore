@@ -93,3 +93,6 @@ llama*.zip
 .worktrees/
 .security-key
 logs/security/
+video/
+node_modules/
+.vs/
