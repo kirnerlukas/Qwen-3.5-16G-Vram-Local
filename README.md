@@ -157,7 +157,9 @@ The mmproj (vision projection) adds ~0.9 GB VRAM overhead but **does NOT slow do
 
 **1. Get llama.cpp**
 
-Download the latest CUDA release from [llama.cpp releases](https://github.com/ggml-org/llama.cpp/releases):
+> **🚀 OPTION A (Recommended):** This repo already includes a pre-built SM120 native binary at `llama.cpp/build-sm120/bin/Release/llama-server.exe` — optimized for RTX 5080/5090 with no JIT warmup!
+
+> **⚠️ OPTION B:** Download the latest CUDA release from [llama.cpp releases](https://github.com/ggml-org/llama.cpp/releases):
 
 | Platform | Download                                |
 | -------- | --------------------------------------- |
@@ -232,6 +234,10 @@ start_servers_speed.bat quality
 <td>
 
 ```bash
+# OPTION A: Use included SM120 native build (RTX 5080/5090 recommended)
+./llama.cpp/build-sm120/bin/Release/llama-server.exe \
+
+# OPTION B: Or use prebuilt (for RTX 30xx/40xx)
 ./llama-bin/llama-server \
   -m ./models/unsloth-gguf/Qwen3.5-35B-A3B-Q3_K_S.gguf \
   --mmproj ./models/unsloth-gguf/mmproj-Qwen3.5-35B-A3B-F16.gguf \
@@ -268,7 +274,7 @@ curl -X POST http://127.0.0.1:8002/v1/chat/completions \
 
 > **⚠️ CRITICAL: Always use `--parallel 1` for the 35B-A3B model.** Without it, the default auto-parallel (4 slots) causes a 10× slowdown (9 t/s instead of 125 t/s) due to oversized recurrent state buffers in the GDN hybrid architecture. [Details →](results/BENCHMARK_RESULTS.md)
 >
-> **💡 First 2 requests may be slow on SM120 GPUs (RTX 5080/5090).** This is CUDA PTX→sm_120 JIT compilation (one-time warmup). RTX 30xx/40xx users won't see this. [Learn more →](docs/RTX5080-NATIVE-BUILD.md#jit-warmup-explained)
+> **💡 Using the included SM120 build eliminates JIT warmup.** If using prebuilt binaries, first 2 requests may be slow on RTX 5080/5090 due to PTX→sm_120 JIT compilation. [Learn more →](docs/RTX5080-NATIVE-BUILD.md#jit-warmup-explained)
 
 ---
 

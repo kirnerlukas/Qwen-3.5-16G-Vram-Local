@@ -16,7 +16,7 @@ switch ($Model.ToLower()) {
         $port    = 8002
         $model   = "$MODELS\Qwen3.5-35B-A3B-Q3_K_S.gguf"
         $mmproj  = "$MODELS\mmproj-35B-F16.gguf"
-        $ctx     = 98304    # 96K — KV ~540 MiB, total ~15246 MiB, ~500 MiB headroom
+        $ctx     = 155904   # 152K — HARD MAX for full speed (PCIe cliff at 156,160)
         $extra   = @("--parallel", "1")
     }
     "9b" {

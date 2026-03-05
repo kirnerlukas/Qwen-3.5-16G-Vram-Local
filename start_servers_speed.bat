@@ -24,7 +24,7 @@ set PROFILE=%~1
 if "%PROFILE%"=="" set PROFILE=coding
 
 REM --- Edit these paths to match your installation ---
-set LLAMA_DIR=%~dp0llama-bin
+set LLAMA_DIR=%~dp0llama.cpp\build-sm120\bin\Release
 set MODELS_DIR=%~dp0models\unsloth-gguf
 set LOGS_DIR=%~dp0logs
 

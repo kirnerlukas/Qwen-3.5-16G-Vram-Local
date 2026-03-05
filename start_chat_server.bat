@@ -1,11 +1,11 @@
 @echo off
 REM ============================================================================
 REM  Qwen3.5 — Model Switcher
-REM  RTX 5080 16GB — ONE SERVER AT A TIME
+REM  RTX 5080 16GB — ONE SERVER ONLY
 REM
 REM  USAGE:
 REM    start_chat_server.bat           <- 35B (default)
-REM    start_chat_server.bat 35b       <- 35B MoE  ~100 t/s  port 8002  96K ctx
+REM    start_chat_server.bat 35b       <- 35B MoE  ~125 t/s  port 8002  152K ctx
 REM    start_chat_server.bat 9b        <- 9B       ~97  t/s  port 8003
 REM    start_chat_server.bat 27b       <- 27B      ~36  t/s  port 8004
 REM ============================================================================
