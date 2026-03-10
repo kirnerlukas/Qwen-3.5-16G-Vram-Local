@@ -4,6 +4,7 @@ Loads settings from config/servers.yaml and provides easy access.
 """
 
 import json
+import sys
 import yaml
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -70,8 +71,9 @@ class ServerConfig:
 
     def to_llama_command(self, llama_dir: Path) -> List[str]:
         """Generate llama-server command arguments"""
+        llama_bin = "llama-server.exe" if sys.platform == "win32" else "llama-server"
         cmd = [
-            str(llama_dir / "llama-server.exe"),
+            str(llama_dir / llama_bin),
             "-m",
             str(self.model_path),
             "--host",

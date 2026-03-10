@@ -56,6 +56,33 @@ servers:
     use_case: "coding"
     description: "35B MoE — 125 t/s coding, ~500 t/s prompt, 96K ctx, vision, all GPU, --parallel 1"
 
+  # CODING SERVER (OPENAI PORT) - Same 35B preset exposed on port 11435
+  coding_openai_11435:
+    enabled: true
+    port: 11435
+    name: "Qwen3.5-35B-A3B-Coding-OpenAI-11435"
+    model: "Qwen3.5-35B-A3B-Q3_K_S.gguf"
+    mmproj: null
+    config:
+      context: 196608
+      gpu_layers: 99
+      flash_attn: "on"
+      cache_type_k: "iq4_nl"
+      cache_type_v: "iq4_nl"
+      temp: 0.6
+      top_p: 0.95
+      top_k: 20
+      presence_penalty: 0.0
+      enable_thinking: false
+      parallel: 1
+      reasoning_budget: 0
+      batch_size: 1024
+      ubatch_size: 256
+      fit_target: 256
+    vram_estimate_gb: 15.3
+    use_case: "coding_openai_11435"
+    description: "35B MoE preset on OpenAI-compatible port 11435"
+
   # FAST VISION SERVER - Quick multimodal tasks
   fast_vision:
     enabled: true
@@ -259,6 +286,13 @@ profiles:
     name: "Speed Optimized"
     description: "Same 35B coding preset, kept for backwards compatibility"
     servers: ["coding"]
+    total_vram_gb: 15.3
+    warning: null
+
+  openai_11435:
+    name: "OpenAI API Port 11435"
+    description: "35B coding preset exposed on port 11435"
+    servers: ["coding_openai_11435"]
     total_vram_gb: 15.3
     warning: null
 
