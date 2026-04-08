@@ -12,7 +12,7 @@ nohup ./llama-bin/llama-server \
   --flash-attn on \
   -ctk iq4_nl -ctv iq4_nl \
   -b 2048 -ub 512 \
-  -t 24 -tb 24 \
+  -t 16 -tb 8 \
   --threads-http 2 \
   --temp 0.6 --top-p 0.95 --top-k 20 --presence-penalty 0.0 \
   --parallel 1 \

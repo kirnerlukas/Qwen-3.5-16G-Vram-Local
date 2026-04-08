@@ -5,6 +5,10 @@ Run Qwen3.5 locally in a Proxmox VM with NVIDIA GPU passthrough and expose an Op
 
 - `http://<vm-ip>:11435/v1/...`
 
+Port note:
+- `8002` is the default `coding` profile in the general launcher.
+- `11435` is the dedicated OpenAI-compatible LAN endpoint documented in this runbook.
+
 This runbook documents exactly what was done in this workspace.
 
 ## Environment Used
@@ -153,6 +157,18 @@ cd /home/uniberg/Qwen-3.5-16G-Vram-Local
 ./scripts/start_11435_software_fast.sh
 ```
 
+### Start LAN reasoning profile on `11435` (classic)
+```bash
+cd /home/uniberg/Qwen-3.5-16G-Vram-Local
+./scripts/start_lan_11435_reasoning.sh
+```
+
+### Start LAN reasoning profile in foreground (recommended for persistence)
+```bash
+cd /home/uniberg/Qwen-3.5-16G-Vram-Local
+./scripts/serve_11435_lan_reasoning.sh
+```
+
 ### Verify on VM
 ```bash
 pgrep -af llama-server
@@ -220,4 +236,3 @@ curl http://10.13.37.16:11435/health
 ```bash
 tail -n 120 logs/server-11435.log
 ```
-

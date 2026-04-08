@@ -24,6 +24,7 @@ It stays strict about evidence, but it should still feel useful at a glance: wha
 - [Recommended presets](#recommended-presets)
 - [Reference measurements](#reference-measurements)
 - [Quick start](#quick-start)
+- [LAN start on 11435](#lan-start-on-11435)
 - [Terminal chat and API helper](#terminal-chat-and-api-helper)
 - [Context guidance](#context-guidance)
 
@@ -166,6 +167,47 @@ Linux and macOS shell scripts:
 ```bash
 curl http://127.0.0.1:8002/health
 curl http://127.0.0.1:8002/v1/models
+```
+
+<a id="lan-start-on-11435"></a>
+## LAN Start on 11435
+
+Use this when you want the OpenAI-compatible endpoint on port `11435` (instead of the default `8002` profile launcher).
+
+### Start (classic shell, background)
+
+```bash
+cd /home/uniberg/Qwen-3.5-16G-Vram-Local
+./scripts/start_lan_11435_reasoning.sh
+```
+
+Alternative launchers on the same port:
+
+- `./scripts/start_best_11435_lan_reasoning.sh` (larger batching)
+- `./scripts/start_11435_software_fast.sh` (software-traffic oriented profile)
+
+### Start (recommended for long-running sessions)
+
+Run foreground in `tmux` / `screen` / `systemd`:
+
+```bash
+cd /home/uniberg/Qwen-3.5-16G-Vram-Local
+./scripts/serve_11435_lan_reasoning.sh
+```
+
+### Verify
+
+```bash
+pgrep -af llama-server
+ss -ltnp | grep 11435
+curl http://127.0.0.1:11435/health
+curl http://<your-host-ip>:11435/health
+```
+
+### Stop
+
+```bash
+pkill -f llama-server
 ```
 
 ## Benchmarking 🧪
